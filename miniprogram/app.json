@@ -1,0 +1,48 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/index/index",
+    "pages/todoEdit/todoEdit",
+    "pages/category/category",
+    "pages/stats/stats",
+    "pages/archive/archive",
+    "pages/profile/profile"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#FAFAF7",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "智能待办",
+    "backgroundColor": "#FAFAF7",
+    "backgroundTextStyle": "dark",
+    "enablePullDownRefresh": false
+  },
+  "tabBar": {
+    "color": "#9CA3AF",
+    "selectedColor": "#2EAA8A",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "待办",
+        "iconPath": "images/tabbar/list.png",
+        "selectedIconPath": "images/tabbar/list-active.png"
+      },
+      {
+        "pagePath": "pages/stats/stats",
+        "text": "统计",
+        "iconPath": "images/tabbar/stats.png",
+        "selectedIconPath": "images/tabbar/stats-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "images/tabbar/me.png",
+        "selectedIconPath": "images/tabbar/me-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

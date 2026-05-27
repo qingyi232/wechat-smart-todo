@@ -1,0 +1,712 @@
+════════════════════════════════════════════════════════════════════
+    基于微信小程序的个人智能待办清单系统
+    代 码 说 明 文 档
+════════════════════════════════════════════════════════════════════
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+一、项目技术栈总览
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  前端：微信小程序原生框架（WXML + WXSS + JavaScript ES6+）
+  后端：微信云开发（云函数，Node.js 运行时）
+  数据库：微信云数据库（基于 MongoDB 的文档型 NoSQL）
+  消息推送：微信订阅消息（cloud.openapi.subscribeMessage.send）
+  定时任务：云函数定时触发器（Timer Trigger）
+  鉴权方式：cloud.getWXContext().OPENID 自动注入用户标识
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+二、完整目录结构与文件说明
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+项目根目录/
+│
+├── project.config.json           ← 微信开发者工具项目配置
+│   （定义 miniprogramRoot、cloudfunctionRoot、AppID、编译选项等）
+│
+├── project.private.config.json   ← 私有配置（不提交git）
+│
+├── miniprogram/                  ← 【小程序前端代码】
+│   ├── app.js                    ← 全局入口：云开发初始化 + 统一云函数调用封装
+│   ├── app.json                  ← 页面路由注册 + TabBar配置 + 全局窗口样式
+│   ├── app.wxss                  ← 全局公共样式
+│   ├── sitemap.json              ← 小程序搜索收录配置
+│   │
+│   ├── utils/                    ← 【工具模块】
+│   │   ├── api.js                ← API封装层：字段命名转换 + 云函数调用方法集合
+│   │   └── date.js               ← 日期工具：格式化、相对时间、逾期判断
+│   │
+│   ├── images/                   ← 图标资源（TabBar图标等）
+│   │   └── tabbar/               ← 底部导航栏图标
+│   │
+│   └── pages/                    ← 【7个页面模块】
+│       ├── login/                ← 登录页
+│       │   ├── login.js
+│       │   ├── login.wxml
+│       │   ├── login.wxss
+│       │   └── login.json
+│       ├── index/                ← 待办列表主页
+│       ├── todoEdit/             ← 新建/编辑待办
+│       ├── category/             ← 分类管理
+│       ├── stats/                ← 数据统计
+│       ├── archive/              ← 已完成归档
+│       └── profile/              ← 个人中心
+│
+├── cloudfunctions/               ← 【云函数后端代码】
+│   ├── login/                    ← 登录+用户管理云函数
+│   │   ├── index.js              ← 主逻辑
+│   │   └── package.json          ← 依赖声明（wx-server-sdk）
+│   ├── todo/                     ← 待办CRUD云函数
+│   │   ├── index.js
+│   │   └── package.json
+│   ├── category/                 ← 分类管理云函数
+│   │   ├── index.js
+│   │   └── package.json
+│   ├── stats/                    ← 数据统计云函数
+│   │   ├── index.js
+│   │   └── package.json
+│   └── reminder/                 ← 提醒推送云函数
+│       ├── index.js              ← 主逻辑（含定时扫描+推送）
+│       ├── config.json           ← 定时触发器配置 + openapi权限声明
+│       └── package.json
+│
+└── database/                     ← 【示例数据文件（JSON Lines格式）】
+    ├── users.json
+    ├── categories.json
+    ├── todos.json
+    ├── reminders.json
+    └── subscribeQuotas.json
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+三、全局入口文件详解
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【miniprogram/app.js】—— 全局入口，最核心的文件之一
+
+  功能1：云开发初始化
+    第21-24行：调用 wx.cloud.init() 初始化云开发SDK
+    如果 cloudEnv 为空，则自动使用默认云开发环境
+
+  功能2：恢复登录状态
+    第27-30行：从 wx.getStorageSync 读取缓存的用户信息
+    避免每次打开小程序都重新登录
+
+  功能3：统一云函数调用封装 call(name, data)
+    第38-66行：封装了 wx.cloud.callFunction
+    所有页面都通过 app.call() 调用云函数
+    处理逻辑：
+      - code=0 → 成功，resolve 返回结果
+      - code=401 → 未登录，清除缓存并跳转登录页
+      - 其他code → 弹出toast提示错误消息
+      - 网络异常 → 弹出"网络错误"提示
+
+
+【miniprogram/app.json】—— 页面路由与全局配置
+
+  pages 数组：注册了7个页面路径（顺序决定默认打开页）
+    第1个是 login 页，表示首次打开进入登录页
+
+  tabBar：底部3个导航标签
+    待办（index）、统计（stats）、我的（profile）
+    配置了选中/未选中图标和颜色
+
+  window：全局导航栏样式
+    背景色 #FAFAF7、黑色标题文字、标题"智能待办"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+四、工具模块详解
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【miniprogram/utils/api.js】—— API调用封装层
+
+  这个文件是前端和云函数之间的桥梁，所有页面都通过它调用后端。
+
+  核心机制：字段命名自动转换
+    前端使用 snake_case（下划线风格）：due_date、category_id
+    云函数使用 camelCase（驼峰风格）：dueDate、categoryId
+    api.js 在调用时自动双向转换，页面代码无需关心
+
+  函数1：toCamel(obj)  第7-18行
+    下划线转驼峰（前端 → 云函数方向）
+    递归处理对象和数组
+    例如：{ due_date: '2025-04-25' } → { dueDate: '2025-04-25' }
+
+  函数2：addSnakeAlias(obj)  第21-36行
+    驼峰转下划线（云函数 → 前端方向）
+    保留原始驼峰字段的同时，增加下划线别名
+    还会自动把 _id 映射为 id
+    例如：{ dueDate, _id } → { dueDate, due_date, _id, id }
+
+  函数3：call(name, data)  第39-50行
+    统一调用封装：调用 app.call() 发起云函数请求
+    请求前：toCamel 转换参数
+    响应后：addSnakeAlias 补全字段别名
+
+  api 对象（第52-82行）：导出19个API方法
+    登录/用户：login、getProfile、updateProfile
+    待办CRUD：getTodos、getTodoDetail、createTodo、updateTodo、toggleTodo、
+              removeTodo、restoreTodo、getTodoSummary
+    分类管理：getCategories、createCategory、updateCategory、removeCategory
+    数据统计：getDashboard
+    提醒相关：getUpcomingReminders、getReminderList、saveSubscribe
+
+
+【miniprogram/utils/date.js】—— 日期工具函数
+
+  函数1：formatDate(date, fmt)
+    通用日期格式化，支持 YYYY-MM-DD HH:mm:ss 等格式
+    兼容字符串和Date对象输入
+
+  函数2：relativeDate(date)
+    智能相对时间显示：
+    - 过期 → "X天前（已逾期）"
+    - 今天 → "今天 14:30"
+    - 明天 → "明天 09:00"
+    - 一周内 → "3天后"
+    - 更远 → "04-25 16:00"
+
+  函数3：isOverdue(date)
+    判断日期是否已过期（早于当前时间）
+
+  函数4：isToday(date)
+    判断日期是否是今天
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+五、7个页面模块详解
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+每个页面由4个文件组成（微信小程序标准结构）：
+  .js   → 页面逻辑（数据、事件处理、API调用）
+  .wxml → 页面结构（类似HTML模板）
+  .wxss → 页面样式（类似CSS）
+  .json → 页面配置（导航栏标题等）
+
+
+────────────────────────────────────────
+页面1：login（登录页）
+────────────────────────────────────────
+路径：miniprogram/pages/login/login
+
+login.js 核心逻辑：
+  onLoad()           → 检测本地缓存，已登录直接跳主页
+  onQuickLogin()     → 快捷登录，不获取头像昵称
+  onAuthorizeLogin() → 调用 wx.getUserProfile 获取用户信息后登录
+  callLoginCloud()   → 调用 login 云函数，成功后缓存用户信息并跳转
+
+业务流程：
+  用户点击按钮 → wx.getUserProfile（可选）→ api.login() → 
+  缓存 openid/user 到 Storage → switchTab 跳转到 index 主页
+
+
+────────────────────────────────────────
+页面2：index（待办列表主页，TabBar页）
+────────────────────────────────────────
+路径：miniprogram/pages/index/index
+
+index.js 核心逻辑：
+  data 属性：
+    user        → 当前用户信息（显示问候语）
+    summary     → 今日概要（总数/今日/逾期/已完成）
+    todos       → 待办列表数据
+    categories  → 分类列表（用于筛选）
+    keyword     → 搜索关键词
+    status      → 筛选状态（active/completed/all）
+    filterCategory → 筛选分类ID
+
+  loadAll()         → 并行加载概要+分类+待办列表
+  loadSummary()     → 调用 api.getTodoSummary()
+  loadCategories()  → 调用 api.getCategories()
+  loadTodos()       → 调用 api.getTodos()，传入筛选参数
+  onToggle()        → 点击复选框切换完成状态
+  onAdd()           → 跳转到 todoEdit 新建页
+  onTodoTap()       → 点击待办项跳转到编辑页
+  getGreeting()     → 根据当前时间返回问候语（早上好/下午好等）
+  getQuote()        → 随机返回一句励志名言
+
+
+────────────────────────────────────────
+页面3：todoEdit（新建/编辑待办）
+────────────────────────────────────────
+路径：miniprogram/pages/todoEdit/todoEdit
+
+todoEdit.js 核心逻辑：
+  data.form 对象包含所有表单字段：
+    title, description       → 标题、描述
+    category_id/name/color   → 分类信息
+    priority                 → 优先级（1-4）
+    dueDatePart, dueTimePart → 截止日期和时间（分开选择）
+    reminder_enabled         → 是否开启提醒
+    reminder_before          → 提前提醒分钟数（15/30/60/120/1440）
+    is_repeat, repeat_type   → 是否重复、重复类型
+
+  onLoad(options)  → 如果 options.id 存在则进入编辑模式，加载已有数据
+  onSubmit()       → 提交表单：
+    - 校验标题非空
+    - 拼接截止时间
+    - 编辑模式 → api.updateTodo()
+    - 新建模式 → api.createTodo()
+    - 若开启提醒 → 调用 requestSubscribeAndSave()
+
+  requestSubscribeAndSave(todoId)  → 订阅消息授权核心方法：
+    - 调用 wx.requestSubscribeMessage 弹窗请求授权
+    - 用户同意后调用 api.saveSubscribe() 保存配额到云端
+    - 配额会被 reminder 云函数的定时扫描消费，触发真实推送
+
+
+────────────────────────────────────────
+页面4：category（分类管理）
+────────────────────────────────────────
+路径：miniprogram/pages/category/category
+
+category.js 核心逻辑：
+  loadCats()     → 加载非系统分类列表
+  onAdd()        → 打开「新建分类」弹窗
+  editCat()      → 打开「编辑分类」弹窗，填充已有数据
+  saveCat()      → 校验名称 → 新建或更新 → 关闭弹窗刷新列表
+  deleteCat()    → 弹窗确认后删除分类
+  selectColor()  → 选择分类颜色
+  noop()         → 空方法，用于阻止弹窗内事件冒泡
+
+  特点：使用自定义弹窗（modal-mask + modal）替代原生弹窗，
+  支持颜色选择器（12种预设颜色）。
+
+
+────────────────────────────────────────
+页面5：stats（数据统计，TabBar页）
+────────────────────────────────────────
+路径：miniprogram/pages/stats/stats
+
+stats.js 核心逻辑：
+  loadData()  → 调用 api.getDashboard() 获取7个维度的统计数据
+  
+  数据处理：
+    weekTrend   → 计算近7天趋势图的百分比高度
+    byCategory  → 计算分类分布的百分比
+    byPriority  → 计算优先级分布的百分比
+  
+  getMotto()  → 根据完成率返回不同的励志语
+
+  展示的统计维度：
+    ① 基础数据卡片：总数/已完成/进行中/今日到期/已逾期
+    ② 完成率百分比
+    ③ 近7天趋势柱状图（完成数 vs 创建数）
+    ④ 分类分布横向条
+    ⑤ 优先级分布横向条
+    ⑥ 本月完成数
+    ⑦ 连续打卡天数
+
+
+────────────────────────────────────────
+页面6：archive（已完成归档）
+────────────────────────────────────────
+路径：miniprogram/pages/archive/archive
+
+archive.js 核心逻辑：
+  loadData()   → api.getTodos({ status: 'completed' })，按创建时间排序
+  onRestore()  → 恢复待办（取消完成状态）：api.toggleTodo()
+  onDelete()   → 永久删除：弹窗确认后 api.removeTodo()
+
+  该页面展示所有已完成的待办，支持恢复和永久删除操作。
+
+
+────────────────────────────────────────
+页面7：profile（个人中心，TabBar页）
+────────────────────────────────────────
+路径：miniprogram/pages/profile/profile
+
+profile.js 核心逻辑：
+  loadProfile()  → api.getProfile() 获取用户详细信息
+  onEditProfile() → 打开编辑资料弹窗
+  saveProfile()  → api.updateProfile() 更新昵称/手机号
+  togglePush()   → 切换推送提醒开关：api.updateProfile({ pushEnabled })
+  onClearCache() → 清除本地 Storage 缓存
+  onLogout()     → 退出登录：清除缓存 → 跳转登录页
+  onCategory()   → 跳转分类管理页
+  onArchive()    → 跳转已完成归档页
+  onAbout()      → 显示关于弹窗
+
+  展示内容：头像昵称、累计待办/已完成/连续打卡、
+  功能入口（分类管理/已完成归档/编辑资料/推送开关/清除缓存/关于/退出）
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+六、5个云函数详解
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+所有云函数采用统一的 action 路由分发模式：
+  前端传 { action: 'xxx', ...参数 }
+  云函数 switch(action) 分发到不同业务方法
+  所有云函数第一步都是 cloud.getWXContext().OPENID 获取用户标识
+
+
+────────────────────────────────────────
+云函数1：login（166行）
+文件：cloudfunctions/login/index.js
+────────────────────────────────────────
+
+  Action 路由：
+    login         → doLogin()
+    getProfile    → getProfile()
+    updateProfile → updateProfile()
+
+  doLogin(openid, appid, unionid, event)
+    第33-102行：登录/注册核心逻辑
+    - 查询 users 集合是否存在该 openid 的用户
+    - 不存在（首次登录）：
+      ① 创建用户文档（昵称默认"待办达人"、loginCount=1）
+      ② 自动创建5个系统预设分类（学习/工作/生活/运动/其他）
+         预设分类定义在第8-14行的 DEFAULT_CATEGORIES 数组
+    - 已存在：更新 loginCount+1，可选更新昵称头像
+    - 返回 openid + 用户信息
+
+  getProfile(openid)
+    第106-131行：获取个人资料
+    - 实时统计总待办数和完成数（而非读缓存）
+    - 返回完整用户信息 + pushEnabled + theme + phone + gender
+
+  updateProfile(openid, event)
+    第134-153行：更新个人信息
+    - 支持更新：nickName、avatarUrl、phone、pushEnabled、theme
+    - 白名单控制允许修改的字段
+
+  pickUser(u)
+    第155-165行：用户信息裁剪工具函数
+    - 只返回安全的字段给前端，避免泄露敏感数据
+
+
+────────────────────────────────────────
+云函数2：todo（306行，最长的云函数）
+文件：cloudfunctions/todo/index.js
+────────────────────────────────────────
+
+  Action 路由：
+    list    → listTodos()       待办列表
+    detail  → detailTodo()      待办详情
+    create  → createTodo()      创建待办
+    update  → updateTodo()      更新待办
+    toggle  → toggleTodo()      切换完成状态
+    remove  → removeTodo()      软删除
+    restore → restoreTodo()     恢复删除
+    summary → summaryTodos()    今日概要
+
+  listTodos(openid, event)
+    第28-53行：待办列表查询
+    - 支持4种筛选：status(active/completed/archived)、categoryId、keyword(正则)
+    - 支持3种排序：dueDate(截止时间)、priority(优先级)、createdAt(创建时间)
+    - 固定过滤 isDeleted=false
+
+  createTodo(openid, event)
+    第69-111行：创建待办
+    - 接收15+个字段：title、description、categoryId、priority、dueDate、
+      isRepeat、repeatType、reminderEnabled、reminderBefore、tags等
+    - dueDate 和 repeatEndDate 自动转换为 Date 对象
+    - 默认值：isCompleted=false、isArchived=false、isDeleted=false、reminderSent=false
+    - 创建后自动递增用户的 totalTodoCount
+
+  updateTodo(openid, event)
+    第115-149行：更新待办
+    - 白名单机制：只允许修改指定字段，防止恶意篡改
+    - 修改 dueDate 或 reminderBefore 时自动重置 reminderSent=false
+      （确保修改截止时间后能重新触发提醒）
+
+  toggleTodo(openid, event)
+    第153-218行：完成状态切换（含重复任务自动续期）
+    - 标记完成时：isCompleted=true、completedAt=当前时间、isArchived=true
+    - 取消完成时：isCompleted=false、completedAt=null、isArchived=false
+    - 完成时递增用户 completedCount
+    - ★ 重复任务核心逻辑：
+      若 isRepeat=true 且有 repeatType，调用 computeNextDueDate() 计算下次日期
+      自动创建一条新的待办，继承所有属性，reminderSent 重置为 false
+
+  computeNextDueDate(currentDate, repeatType)
+    第221-243行：计算下一个截止日期
+    - daily: +1天
+    - weekly: +7天
+    - monthly: +1月
+    - workday: +1天后跳过周末
+
+  removeTodo / restoreTodo
+    第246-269行：软删除/恢复（设置 isDeleted 标志，不真正删除数据）
+
+  summaryTodos(openid)
+    第272-305行：今日概要
+    - 并行查询4个维度：进行中总数、今日到期、已逾期、已完成
+
+
+────────────────────────────────────────
+云函数3：category（131行）
+文件：cloudfunctions/category/index.js
+────────────────────────────────────────
+
+  Action 路由：
+    list   → listCategories()
+    create → createCategory()
+    update → updateCategory()
+    remove → removeCategory()
+
+  listCategories(openid)
+    第22-38行：列出所有分类 + 统计每个分类下的待办数
+    - 按 sortOrder 升序排列
+    - 对每个分类并行查询 todos 集合计数
+
+  createCategory(openid, event)
+    第42-63行：创建自定义分类
+    - 参数：name、color(默认#2EAA8A)、icon(默认tag)
+    - 重名校验：同一用户不允许同名分类
+    - isSystem=false、sortOrder=99
+
+  updateCategory(openid, event)
+    第67-97行：更新分类
+    - 系统分类（isSystem=true）禁止修改
+    - ★ 联动更新：修改分类名称/颜色时，自动更新 todos 集合中的冗余字段
+      （categoryName、categoryColor），保持数据一致性
+
+  removeCategory(openid, event)
+    第101-130行：删除分类
+    - 系统分类禁止删除
+    - ★ 数据迁移：删除前把该分类下的所有待办自动转移到"其他"分类
+      更新 categoryId/categoryName/categoryColor 三个字段
+
+
+────────────────────────────────────────
+云函数4：stats（145行）
+文件：cloudfunctions/stats/index.js
+────────────────────────────────────────
+
+  这个云函数没有 action 分发，直接返回完整的统计数据面板。
+
+  统计维度1：base（基础统计）
+    第18-30行：并行查询5个计数
+    total(总数)、completed(已完成)、active(进行中)、
+    todayCount(今日到期)、overdue(已逾期)
+
+  统计维度2：completionRate（完成率）
+    第39-40行：completed / total * 100，四舍五入
+
+  统计维度3：byCategory（分类分布）
+    第43-60行：使用聚合管道 aggregate
+    - match → group(按categoryName分组，sum计数) → sort(按count降序)
+    - 过滤掉空分类名
+
+  统计维度4：weekTrend（近7天趋势）
+    第63-87行：遍历最近7天
+    - 每天并行查询完成数和创建数
+    - 返回 [{date, completed, created}, ...]
+
+  统计维度5：byPriority（优先级分布）
+    第90-101行：聚合管道按 priority 分组计数
+
+  统计维度6：monthCompleted（本月完成数）
+    第104-107行：查询 completedAt >= 本月1日 的记录数
+
+  统计维度7：streakDays（连续打卡天数）
+    第126-144行：calculateStreak 函数
+    - 从今天往前逐日检查是否有完成的待办
+    - 连续有 → streak+1，遇到断档 → 停止
+    - 最多检查365天
+
+
+────────────────────────────────────────
+云函数5：reminder（208行）
+文件：cloudfunctions/reminder/index.js
+────────────────────────────────────────
+
+  这是最复杂的云函数，同时被「定时触发器」和「前端API」两种方式调用。
+
+  配置文件 config.json：
+    permissions.openapi: ["subscribeMessage.send"]  → 声明需要订阅消息推送权限
+    triggers: 定时触发器，每5分钟执行一次（cron: "0 */5 * * * * *"）
+
+  TEMPLATE_ID（第10行）：
+    订阅消息模板ID，部署前必须替换为真实值
+
+  入口分发逻辑：
+    无 action 字段（定时触发器调用）→ scheduleScan()
+    action='upcoming'  → upcoming()  即将到期的待办
+    action='list'      → list()      提醒历史记录
+    action='saveSubscribe' → saveSubscribe()  保存订阅配额
+    action='scanNow'   → scheduleScan()  手动触发扫描
+
+  upcoming(openid)
+    第37-48行：查询24小时内到期且未完成的待办
+    - 条件：reminderEnabled=true、isDeleted=false、isCompleted=false
+    - 按 dueDate 升序排列
+
+  saveSubscribe(openid, event)
+    第58-75行：保存一次订阅消息授权
+    - 写入 subscribeQuotas 集合
+    - 每次授权对应 quota=1（一次推送机会）
+    - consumed=false 表示尚未使用
+
+  ★ scheduleScan()  —— 核心推送扫描逻辑
+    第78-196行：定时触发器的入口
+
+    扫描步骤：
+    ① 查询所有 reminderEnabled=true、reminderSent=false、dueDate不为空的待办
+    ② 逐条判断发送时机：
+       shouldSendAt = dueDate - reminderBefore(分钟)
+       当前时间必须在 [shouldSendAt, dueDate] 区间内才发送
+    ③ 检查用户 pushEnabled 开关（users集合）
+       若关闭 → 标记 reminderSent=true 跳过
+    ④ 查找 subscribeQuotas 中该待办的可用配额
+       若无配额 → 写入 reminders 记录（status=no_subscribe），标记 reminderSent
+    ⑤ 有配额 → 调用 cloud.openapi.subscribeMessage.send 推送微信通知
+       推送内容：thing1(标题)、time2(截止时间)、thing3(描述)
+    ⑥ 推送成功 → 标记配额已消费 + reminderSent=true + 写入 reminders(status=sent)
+    ⑦ 推送失败 → 写入 reminders(status=failed) + 错误信息
+
+  辅助函数：
+    safeText(text, maxLen) → 截断文字（订阅消息字段有字数限制）
+    formatDate(d) → 格式化日期为 "YYYY-MM-DD HH:mm" 格式
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+七、数据库集合设计
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+所有集合统一权限：「仅创建者可读写」
+所有集合的 _openid 由云函数自动注入，用于数据隔离
+
+
+【users 用户表】
+  _id              自动生成的文档ID
+  _openid          微信OpenID（唯一标识用户）
+  unionId          UnionID（跨公众号/小程序关联，可选）
+  nickName         昵称（默认"待办达人"）
+  avatarUrl        头像URL
+  gender           性别（0未知/1男/2女）
+  loginCount       累计登录次数
+  totalTodoCount   累计创建待办数
+  completedCount   累计完成数
+  streakDays       连续打卡天数
+  pushEnabled      是否开启推送（默认true）
+  theme            主题（默认"light"）
+  phone            手机号（可选）
+  createdAt        注册时间
+  updatedAt        最后更新时间
+
+
+【categories 分类表】
+  _id              文档ID
+  _openid          所属用户
+  name             分类名称（如"学习"、"工作"）
+  color            颜色（十六进制，如"#4F46E5"）
+  icon             图标标识（如"book"、"briefcase"）
+  isSystem         是否系统预设（true=不可删改）
+  sortOrder        排序权重（越小越靠前）
+  createdAt        创建时间
+
+  系统预设5个分类：
+  学习(#4F46E5,book,0) 工作(#0EA5E9,briefcase,1) 生活(#10B981,home,2)
+  运动(#F59E0B,activity,3) 其他(#9CA3AF,tag,4)
+
+
+【todos 待办事项表】—— 字段最多的核心表
+  _id              文档ID
+  _openid          所属用户
+  title            标题（必填）
+  description      描述
+  categoryId       分类ID
+  categoryName     分类名称（冗余字段，避免关联查询）
+  categoryColor    分类颜色（冗余字段）
+  priority         优先级：1=低 2=中 3=高 4=紧急
+  dueDate          截止时间（Date类型）
+  isCompleted      是否已完成
+  completedAt      完成时间
+  isArchived       是否已归档（完成时自动设为true）
+  isDeleted        是否已删除（软删除标志）
+  isRepeat         是否重复任务
+  repeatType       重复类型：daily/workday/weekly/monthly
+  repeatEndDate    重复结束日期
+  reminderEnabled  是否开启提醒
+  reminderBefore   提前提醒分钟数（15/30/60/120/1440）
+  reminderSent     是否已发送提醒（防止重复推送）
+  tags             标签数组
+  createdAt        创建时间
+  updatedAt        更新时间
+
+
+【reminders 提醒记录表】
+  _id              文档ID
+  _openid          所属用户
+  todoId           关联的待办ID
+  scheduledAt      计划触发时间
+  sentAt           实际推送时间
+  status           状态：sent(已推送) / no_subscribe(无配额) / failed(失败)
+  message          推送内容或错误信息
+  createdAt        记录创建时间
+
+
+【subscribeQuotas 订阅配额表】
+  _id              文档ID
+  _openid          所属用户
+  todoId           关联的待办ID
+  templateId       订阅消息模板ID
+  quota            配额数（默认1，每次授权获得1次推送机会）
+  consumed         是否已消费
+  consumedAt       消费时间
+  createdAt        创建时间
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+八、核心设计模式与技术亮点
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Action 路由分发模式
+   每个云函数通过 switch(event.action) 分发请求到不同业务方法，
+   实现单个云函数内部的多接口复用，减少云函数数量，便于管理。
+
+2. 字段命名自动转换
+   api.js 中的 toCamel / addSnakeAlias 实现前后端字段风格自动适配，
+   前端用 snake_case，云函数用 camelCase，互不影响。
+
+3. 冗余字段 + 联动更新
+   todos 表存储了 categoryName 和 categoryColor（冗余），
+   查询列表时无需关联查询分类表，提升性能。
+   修改分类时通过 category 云函数联动更新所有相关待办。
+
+4. 软删除机制
+   删除待办不是真正删除文档，而是设 isDeleted=true，
+   所有查询都过滤 isDeleted=false，支持恢复误删数据。
+
+5. 重复任务自动续期
+   完成重复任务时，自动计算下一个截止日期并创建新待办，
+   新待办继承所有属性（分类、优先级、提醒设置），reminderSent 重置。
+
+6. 订阅消息配额管理
+   微信订阅消息要求「一次授权一次推送」，系统通过 subscribeQuotas 集合
+   精确管理每次授权的配额，扫描时按需消费，确保不超发。
+
+7. 定时触发器 + 推送
+   reminder 云函数配置了 Timer Trigger（每5分钟触发），
+   自动扫描到期待办并推送，用户无需打开小程序即可收到通知。
+
+8. 聚合管道统计
+   stats 云函数使用 aggregate().match().group().sort() 聚合管道，
+   在数据库层完成分组统计，比取出全部数据在内存中计算效率更高。
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+九、代码量统计
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  文件类别              文件数    总行数（约）
+  ─────────────────────────────────────
+  云函数 JS              5        约 850 行
+  小程序页面 JS          7        约 700 行
+  工具模块 JS            2        约 146 行
+  全局 JS (app.js)       1        约  69 行
+  页面模板 WXML          7        约 600 行
+  页面样式 WXSS          8        约 900 行
+  配置文件 JSON          若干     约 200 行
+  ─────────────────────────────────────
+  合计                  30+      约 3400+ 行
+
+
+════════════════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════════════════

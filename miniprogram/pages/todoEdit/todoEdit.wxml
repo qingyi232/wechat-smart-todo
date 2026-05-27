@@ -1,0 +1,107 @@
+<view class="page">
+  <view class="form">
+    <!-- 标题 -->
+    <view class="field">
+      <view class="field-label">标题</view>
+      <input class="input-field" placeholder="想做点什么？"
+        value="{{form.title}}" bindinput="setField" data-field="title"
+        maxlength="50" />
+    </view>
+
+    <!-- 描述 -->
+    <view class="field">
+      <view class="field-label">描述（可选）</view>
+      <textarea class="textarea-field"
+        placeholder="补充一些详细说明..."
+        value="{{form.description}}" bindinput="setField" data-field="description"
+        maxlength="200"
+        auto-height />
+    </view>
+
+    <!-- 分类 -->
+    <view class="field">
+      <view class="field-label">分类</view>
+      <scroll-view scroll-x class="category-picker">
+        <view class="cat-item {{form.category_id == item.id ? 'active' : ''}}"
+          wx:for="{{categories}}" wx:key="id"
+          bindtap="selectCategory" data-id="{{item.id}}" data-name="{{item.name}}" data-color="{{item.color}}"
+          style="{{form.category_id == item.id ? 'background:' + item.color + ';color:#fff;border-color:' + item.color : ''}}">
+          <view class="cat-dot" style="background:{{item.color}}" wx:if="{{form.category_id != item.id}}"></view>
+          {{item.name}}
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 优先级 -->
+    <view class="field">
+      <view class="field-label">优先级</view>
+      <view class="priority-row">
+        <view class="priority-item {{form.priority == item.val ? 'active' : ''}}"
+          wx:for="{{priorities}}" wx:key="val" wx:for-item="item"
+          style="{{form.priority == item.val ? 'background:' + item.color + ';color:#fff;border-color:' + item.color : 'color:' + item.color}}"
+          bindtap="selectPriority" data-val="{{item.val}}">
+          <text class="priority-dot-s" style="background:{{item.color}}" wx:if="{{form.priority != item.val}}"></text>
+          {{item.label}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 截止时间 -->
+    <view class="field">
+      <view class="field-label">截止时间</view>
+      <view class="date-row">
+        <picker mode="date" value="{{form.dueDatePart || ''}}" bindchange="selectDueDate">
+          <view class="date-box">
+            <text class="date-icon">📅</text>
+            <text class="date-value">{{form.dueDatePart || '选择日期'}}</text>
+          </view>
+        </picker>
+        <picker mode="time" value="{{form.dueTimePart || '09:00'}}" bindchange="selectDueTime">
+          <view class="date-box">
+            <text class="date-icon">⏰</text>
+            <text class="date-value">{{form.dueTimePart || '09:00'}}</text>
+          </view>
+        </picker>
+        <view class="clear-date" wx:if="{{form.dueDatePart}}" bindtap="clearDueDate">✕</view>
+      </view>
+    </view>
+
+    <!-- 提醒 -->
+    <view class="field">
+      <view class="field-label">提前提醒</view>
+      <view class="switch-row">
+        <view class="switch-text">到期前提醒我</view>
+        <switch checked="{{form.reminder_enabled}}" bindchange="toggleReminder" color="#2EAA8A" />
+      </view>
+      <view class="reminder-options" wx:if="{{form.reminder_enabled}}">
+        <view class="reminder-chip {{form.reminder_before == item ? 'active' : ''}}"
+          wx:for="{{reminderOptions}}" wx:key="*this"
+          bindtap="selectReminder" data-val="{{item}}">
+          {{item < 60 ? item + '分钟' : (item / 60) + '小时'}}前
+        </view>
+      </view>
+    </view>
+
+    <!-- 重复 -->
+    <view class="field">
+      <view class="field-label">重复设置</view>
+      <view class="switch-row">
+        <view class="switch-text">重复任务</view>
+        <switch checked="{{form.is_repeat}}" bindchange="toggleRepeat" color="#2EAA8A" />
+      </view>
+      <view class="repeat-options" wx:if="{{form.is_repeat}}">
+        <view class="repeat-chip {{form.repeat_type === item.val ? 'active' : ''}}"
+          wx:for="{{repeatOptions}}" wx:key="val" wx:for-item="item"
+          bindtap="selectRepeatType" data-val="{{item.val}}">
+          {{item.label}}
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部按钮组 -->
+  <view class="footer-actions">
+    <view class="btn-delete" wx:if="{{isEdit}}" bindtap="onDelete">删除</view>
+    <view class="btn-submit" bindtap="onSubmit">{{isEdit ? '保存修改' : '创建待办'}}</view>
+  </view>
+</view>

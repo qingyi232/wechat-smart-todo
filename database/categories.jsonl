@@ -1,0 +1,5 @@
+{"name":"学习","color":"#4F46E5","icon":"book","isSystem":true,"sortOrder":0,"createdAt":{"$date":"2026-04-20T00:00:00.000Z"}}
+{"name":"工作","color":"#0EA5E9","icon":"briefcase","isSystem":true,"sortOrder":1,"createdAt":{"$date":"2026-04-20T00:00:00.000Z"}}
+{"name":"生活","color":"#10B981","icon":"home","isSystem":true,"sortOrder":2,"createdAt":{"$date":"2026-04-20T00:00:00.000Z"}}
+{"name":"运动","color":"#F59E0B","icon":"activity","isSystem":true,"sortOrder":3,"createdAt":{"$date":"2026-04-20T00:00:00.000Z"}}
+{"name":"其他","color":"#9CA3AF","icon":"tag","isSystem":true,"sortOrder":4,"createdAt":{"$date":"2026-04-20T00:00:00.000Z"}}

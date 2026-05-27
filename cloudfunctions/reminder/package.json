@@ -1,0 +1,9 @@
+{
+  "name": "reminder",
+  "version": "1.0.0",
+  "description": "提醒云函数：订阅消息推送 + 定时扫描到期待办",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

@@ -1,0 +1,278 @@
+========================================================
+  基于微信小程序的个人智能待办清单系统
+  完整启动与部署说明（云开发版）
+========================================================
+
+【架构说明】
+本项目完全按照毕业设计要求文档要求实现，采用微信云开发架构：
+  前端：微信小程序原生框架（WXML/WXSS/JavaScript）
+  后端：微信云开发（云函数 + 云数据库）
+  数据库：微信云数据库（文档型 NoSQL）
+  提醒：微信订阅消息 + 云函数定时触发器
+
+目录结构：
+  项目根目录/
+  ├── miniprogram/              # 小程序前端
+  │   ├── app.js                # 云开发初始化
+  │   ├── app.json
+  │   ├── pages/                # 8 个页面
+  │   ├── utils/api.js          # 云函数调用封装
+  │   └── ...
+  ├── cloudfunctions/           # 云函数根目录
+  │   ├── login/                # 登录 + 用户信息
+  │   ├── todo/                 # 待办 CRUD
+  │   ├── category/             # 分类管理
+  │   ├── stats/                # 数据统计
+  │   └── reminder/             # 提醒扫描 + 订阅消息推送
+  ├── project.config.json       # 项目配置（含 miniprogramRoot 与 cloudfunctionRoot）
+  └── 启动说明.txt              # 本文档
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+一、所需软件
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 微信开发者工具（稳定版 Stable Build）
+   下载：https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html
+
+2. Node.js 18+（仅用于本地 npm install 云函数依赖）
+   下载：https://nodejs.org/zh-cn/download/
+
+3. 注册小程序账号并获取 AppID（开通云开发需要真实 AppID，测试号不支持）
+   https://mp.weixin.qq.com/wxamp/devprofile/get_profile
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+二、第一次部署（详细步骤）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【步骤 1：在微信开发者工具中导入项目】
+  - 启动微信开发者工具
+  - 点击 [+] → [导入项目]
+  - 项目目录：选择本项目根目录
+      F:\26dan\基于微信小程序的个人智能待办清单系统的设计与实现
+      （注意：不是选 miniprogram 子目录，而是根目录）
+  - AppID：填入您注册的小程序 AppID
+  - 项目名称：任意
+
+【步骤 2：开通云开发】
+  - 进入项目后，点击顶部菜单 [云开发]
+  - 按提示创建云开发环境
+  - 记录生成的 环境 ID（类似 cloud1-1gxxxxxx）
+
+【步骤 3：把环境 ID 写入 app.js】
+  打开 miniprogram/app.js，把 globalData.cloudEnv 改为您的环境 ID：
+
+    globalData: {
+      cloudEnv: 'cloud1-1gxxxxxx',  // 此处填您的环境 ID
+      ...
+    }
+
+  或者保留默认（空字符串），云开发会自动使用第一个环境。
+
+【步骤 4：创建云数据库集合】
+  进入云开发控制台 → [数据库]，创建以下 4 个集合：
+
+    users               # 用户
+    categories          # 分类
+    todos               # 待办事项
+    reminders           # 提醒记录
+    subscribeQuotas     # 订阅消息配额（每次 wx.requestSubscribeMessage 后记录一次授权）
+
+  每个集合的权限建议设置为：
+    [仅创建者可读写]  （保证用户只能访问自己的数据）
+
+【步骤 5：上传并部署所有云函数】
+  在微信开发者工具左侧文件树，依次对每个云函数目录（login/todo/category/stats/reminder）：
+  
+  ① 右键点击该云函数文件夹 → [在终端中打开]
+  ② 在终端执行：
+       npm install
+     或使用内置工具：右键 → [在云端安装依赖]
+  ③ 右键 → [上传并部署：云端安装依赖（不上传node_modules）]
+
+  依次完成 5 个云函数的部署。
+
+【步骤 6：配置订阅消息模板（重要！关系到"微信提醒"功能）】
+  登录小程序管理后台：https://mp.weixin.qq.com/
+    → [功能] → [订阅消息] → [公共模板库]
+  
+  选择或申请一个消息模板，要求字段包含：
+    thing1 (待办标题)
+    time2  (截止时间)
+    thing3 (备注/描述)
+
+  申请通过后复制模板 ID，然后修改两处代码：
+    ① cloudfunctions/reminder/index.js 第 11 行
+       const TEMPLATE_ID = 'PLEASE_REPLACE_WITH_YOUR_TEMPLATE_ID';
+    ② miniprogram/pages/todoEdit/todoEdit.js 中 requestSubscribeAndSave 函数内的 TEMPLATE_ID
+  
+  改完后重新上传 reminder 云函数。
+
+【步骤 7：配置定时触发器】
+  reminder 云函数的 config.json 已配置好定时触发器（每 5 秒执行一次扫描）：
+    
+    "triggers": [
+      { "name": "remindScan", "type": "timer", "config": "*/5 * * * * * *" }
+    ]
+  
+  上传云函数时触发器会自动生效。
+  在云开发控制台 → [云函数] → [reminder] → [触发器] 可查看。
+
+【步骤 8：启动小程序预览】
+  在微信开发者工具主界面：
+  - 点击 [编译]
+  - 在模拟器看到启动页 → 登录页
+  - 点击 [微信授权登录] 即可进入主界面
+
+  手机端预览：
+  - 点击工具栏 [预览]
+  - 扫描二维码即可在真机上体验
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+三、数据库集合与字段结构
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【users 用户表】
+  _id              用户文档 ID（自动生成）
+  _openid          微信 OpenID（云函数自动注入）
+  unionId          UnionID（可选）
+  nickName         昵称
+  avatarUrl        头像
+  gender           性别
+  loginCount       累计登录次数
+  totalTodoCount   累计创建待办数
+  completedCount   累计完成数
+  streakDays       连续打卡天数
+  pushEnabled      是否启用推送
+  theme            主题
+  createdAt/updatedAt  时间戳
+
+【categories 分类表】
+  _id, _openid
+  name, color, icon
+  isSystem        是否系统预设分类
+  sortOrder       排序值
+  createdAt
+
+【todos 待办表】
+  _id, _openid
+  title, description
+  categoryId, categoryName, categoryColor
+  priority        1~4 (低/中/高/紧急)
+  dueDate         截止时间（Date）
+  isCompleted, completedAt
+  isArchived, isDeleted
+  isRepeat, repeatType, repeatEndDate
+  reminderEnabled, reminderBefore, reminderSent
+  tags
+  createdAt, updatedAt
+
+【reminders 提醒记录表】
+  _id, _openid, todoId
+  scheduledAt, sentAt
+  status          sent / no_subscribe / failed
+  message
+  createdAt
+
+【subscribeQuotas 订阅配额表】
+  _id, _openid, todoId, templateId
+  quota           配额（默认 1）
+  consumed        是否已使用
+  createdAt, consumedAt
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+四、核心功能说明
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 微信授权登录
+   - 用户首次进入小程序点击"微信授权登录"按钮
+   - 调用 wx.getUserProfile 获取昵称/头像
+   - login 云函数自动通过 cloud.getWXContext() 拿到真实 OpenID
+   - 首次登录自动创建用户 + 5 个系统预设分类
+
+2. 待办 CRUD
+   - 新建：todoEdit 页面填表 → api.createTodo → todo 云函数创建文档
+   - 编辑：同上，传入 id
+   - 软删除：isDeleted 设为 true
+   - 切换完成：isCompleted 取反；重复任务自动创建下一次
+
+3. 分类管理
+   - 系统分类（isSystem=true）不可删除/修改
+   - 自定义分类支持增删改；删除时该分类下的待办自动归入"其他"
+
+4. 数据统计
+   - 基础统计：total/completed/active/todayCount/overdue
+   - 按分类分布
+   - 近 7 天完成趋势
+   - 按优先级分布
+   - 本月完成数
+   - 连续打卡天数
+
+5. 智能提醒
+   - 用户新建/编辑待办时若开启提醒 → 请求 wx.requestSubscribeMessage
+   - 用户授权后前端调用 api.saveSubscribe 将配额入库
+   - reminder 云函数定时触发器（默认每 5 秒扫描）
+   - 扫描到"距截止时间 ≤ reminder_before 分钟且未推送"的待办
+   - 通过 cloud.openapi.subscribeMessage.send 推送微信消息
+   - 用户在微信"服务通知"中收到提醒
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+五、常见问题
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【Q1】点击登录后一直转圈
+  A1：检查：
+       ① app.js 中的 cloudEnv 是否填写正确
+       ② 云开发是否已开通
+       ③ login 云函数是否已上传部署
+
+【Q2】提示"cloud not defined"
+  A2：微信开发者工具 → [详情] → [本地设置]
+      勾选：[使用 npm 模块]
+      并确保基础库版本 ≥ 2.2.3
+
+【Q3】添加待办后收不到微信提醒
+  A3：检查：
+       ① 订阅消息模板 ID 是否已替换（reminder/index.js 和 todoEdit.js 两处）
+       ② 用户是否授权了订阅消息（首次授权弹窗要点"允许"）
+       ③ 定时触发器是否配置成功（云开发控制台查看）
+       ④ 小程序后台的订阅消息模板是否处于"使用中"状态
+
+【Q4】云数据库权限错误
+  A4：在云开发控制台 → [数据库] → 选择集合 → [权限设置]
+      设置为 "仅创建者可读写"
+
+【Q5】如何调试云函数
+  A5：微信开发者工具 → [云开发] → [云函数] 选择目标云函数 → [云端测试]
+      可输入测试参数并查看日志
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+六、技术栈清单
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【前端】
+  微信小程序原生框架 WXML / WXSS / JavaScript ES6+
+  wx.cloud API（云开发前端 SDK）
+  wx.requestSubscribeMessage（订阅消息）
+
+【后端】
+  微信云函数（Node.js 运行时）
+  wx-server-sdk ~2.6.3
+  cloud.database（云数据库）
+  cloud.openapi.subscribeMessage.send（订阅消息推送）
+  cloud.DYNAMIC_CURRENT_ENV（云开发环境动态绑定）
+
+【数据库】
+  微信云数据库（基于 MongoDB 的 JSON 文档型 NoSQL）
+
+【其他】
+  定时触发器（timer trigger，每 5 秒扫描）
+
+========================================================
+
+祝您使用愉快！如有问题请查阅源代码或联系开发者。

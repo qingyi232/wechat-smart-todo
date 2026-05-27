@@ -1,0 +1,100 @@
+<view class="page">
+  <!-- 顶部欢迎区 -->
+  <view class="hero">
+    <view class="hero-bg"></view>
+    <view class="hero-content">
+      <view class="greet-row">
+        <view>
+          <view class="greet">{{greeting}}</view>
+          <view class="user-name">{{user.nickname || '同学'}}</view>
+        </view>
+        <image class="hero-avatar" src="{{user.avatar}}" mode="aspectFill" />
+      </view>
+      <view class="quote">{{quote}}</view>
+    </view>
+  </view>
+
+  <!-- 今日概览卡片 -->
+  <view class="overview">
+    <view class="stat-card primary">
+      <view class="stat-value">{{summary.totalActive || 0}}</view>
+      <view class="stat-label">待完成</view>
+    </view>
+    <view class="stat-card accent">
+      <view class="stat-value">{{summary.todayCount || 0}}</view>
+      <view class="stat-label">今日</view>
+    </view>
+    <view class="stat-card warning" wx:if="{{summary.overdueCount > 0}}">
+      <view class="stat-value">{{summary.overdueCount}}</view>
+      <view class="stat-label">已逾期</view>
+    </view>
+    <view class="stat-card success" wx:else>
+      <view class="stat-value">{{summary.completedCount || 0}}</view>
+      <view class="stat-label">已完成</view>
+    </view>
+  </view>
+
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <image class="search-icon" src="https://api.iconify.design/carbon:search.svg?color=%239CA3AF" />
+    <input class="search-input" placeholder="搜索待办..." value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="onSearch" />
+    <view class="clear-btn" wx:if="{{keyword}}" bindtap="clearKeyword">✕</view>
+  </view>
+
+  <!-- 筛选 -->
+  <scroll-view scroll-x class="filter-bar" enable-flex>
+    <view class="filter-chip {{status === 'all' ? 'active' : ''}}" data-status="all" bindtap="changeStatus">全部</view>
+    <view class="filter-chip {{status === 'active' ? 'active' : ''}}" data-status="active" bindtap="changeStatus">进行中</view>
+    <view class="filter-chip {{status === 'completed' ? 'active' : ''}}" data-status="completed" bindtap="changeStatus">已完成</view>
+    <view class="filter-chip category-chip {{filterCategory === '' ? 'active' : ''}}" data-id="" bindtap="changeCategory">全部分类</view>
+    <view class="filter-chip category-chip {{filterCategory == item.id ? 'active' : ''}}"
+      wx:for="{{categories}}" wx:key="id"
+      data-id="{{item.id}}"
+      style="{{filterCategory == item.id ? 'background:' + item.color + ';color:#fff' : ''}}"
+      bindtap="changeCategory">
+      <view class="cat-dot" style="background:{{item.color}}" wx:if="{{filterCategory != item.id}}"></view>
+      {{item.name}}
+    </view>
+  </scroll-view>
+
+  <!-- 待办列表 -->
+  <view class="todo-list" wx:if="{{todos.length > 0}}">
+    <view class="todo-item {{item.is_completed ? 'done' : ''}} {{item.overdue ? 'overdue' : ''}}"
+      wx:for="{{todos}}" wx:key="id"
+      bindtap="onTodoTap" data-id="{{item.id}}">
+      <view class="todo-check" catchtap="onToggle" data-id="{{item.id}}" style="border-color:{{item.category_color}}">
+        <view class="check-inner" wx:if="{{item.is_completed}}" style="background:{{item.category_color}}">
+          <text class="check-mark">✓</text>
+        </view>
+      </view>
+      <view class="todo-body">
+        <view class="todo-title">{{item.title}}</view>
+        <view class="todo-meta">
+          <view class="category-tag" style="background:{{item.category_color}}20;color:{{item.category_color}}">
+            {{item.category_name || '未分类'}}
+          </view>
+          <view class="priority-dot" data-priority="{{item.priority}}"></view>
+          <text class="priority-label">{{priorityLabels[item.priority]}}</text>
+          <view class="due-date" wx:if="{{item.due_date}}">
+            <text class="due-icon">⏰</text>
+            {{item.due_text}}
+          </view>
+          <view class="repeat-icon" wx:if="{{item.is_repeat}}">
+            <text>🔁</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:else>
+    <image src="https://api.iconify.design/carbon:task-complete.svg?color=%232EAA8A" mode="aspectFit" style="width:160rpx;height:160rpx;opacity:0.5" />
+    <view style="margin-top:20rpx">暂无待办事项</view>
+    <view class="hint">点击右下角按钮添加您的第一个待办</view>
+  </view>
+
+  <!-- 悬浮添加按钮 -->
+  <view class="fab" bindtap="onAdd">
+    <text class="fab-icon">+</text>
+  </view>
+</view>

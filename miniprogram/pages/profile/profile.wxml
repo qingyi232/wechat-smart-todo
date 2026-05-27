@@ -1,0 +1,113 @@
+<view class="page">
+  <view class="header">
+    <view class="header-bg"></view>
+    <view class="profile-card">
+      <view class="avatar-row">
+        <image class="avatar" src="{{profile.avatar_url || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI9FhqR54LnS4lkb2pMa0W39tIiby4IdpVicicpYLibKyRtN1iaJIF1Oana30ChGGCKPOhGibZickuA/0'}}" mode="aspectFill" />
+        <view class="user-info">
+          <view class="name">{{profile.nickname || '同学'}}</view>
+          <view class="id">ID: {{profile.openid}}</view>
+          <view class="phone" wx:if="{{profile.phone}}">📱 {{profile.phone}}</view>
+        </view>
+      </view>
+      <view class="stat-row">
+        <view class="stat-col">
+          <view class="stat-num">{{profile.totalTodo || 0}}</view>
+          <view class="stat-txt">累计待办</view>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-col">
+          <view class="stat-num">{{profile.completedCount || 0}}</view>
+          <view class="stat-txt">已完成</view>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-col">
+          <view class="stat-num">{{profile.streak_days || 0}}</view>
+          <view class="stat-txt">连续打卡</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能入口 -->
+  <view class="menu-card">
+    <view class="menu-item" bindtap="onCategory">
+      <view class="menu-left">
+        <view class="menu-icon" style="background:#E8F5EF">🏷️</view>
+        <text class="menu-title">分类管理</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+
+    <view class="divider-inline"></view>
+
+    <view class="menu-item" bindtap="onArchive">
+      <view class="menu-left">
+        <view class="menu-icon" style="background:#FFF4E8">📦</view>
+        <text class="menu-title">已完成归档</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+
+    <view class="divider-inline"></view>
+
+    <view class="menu-item" bindtap="onEditProfile">
+      <view class="menu-left">
+        <view class="menu-icon" style="background:#EDE9FE">✏️</view>
+        <text class="menu-title">编辑资料</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="menu-card">
+    <view class="menu-item">
+      <view class="menu-left">
+        <view class="menu-icon" style="background:#FEE7EB">🔔</view>
+        <text class="menu-title">推送提醒</text>
+      </view>
+      <switch checked="{{profile.push_enabled}}" bindchange="togglePush" color="#2EAA8A" />
+    </view>
+
+    <view class="divider-inline"></view>
+
+    <view class="menu-item" bindtap="onClearCache">
+      <view class="menu-left">
+        <view class="menu-icon" style="background:#E0F2FE">🧹</view>
+        <text class="menu-title">清除缓存</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+
+    <view class="divider-inline"></view>
+
+    <view class="menu-item" bindtap="onAbout">
+      <view class="menu-left">
+        <view class="menu-icon" style="background:#F3F4F6">ℹ️</view>
+        <text class="menu-title">关于我们</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="logout-btn" bindtap="onLogout">退出登录</view>
+</view>
+
+<!-- 编辑资料弹窗 -->
+<view class="modal-mask" wx:if="{{showEdit}}" bindtap="closeEdit">
+  <view class="modal" catchtap="noop">
+    <view class="modal-title">编辑资料</view>
+    <view class="modal-field">
+      <view class="modal-label">昵称</view>
+      <input class="modal-input" value="{{editForm.nickname}}" bindinput="onEditInput" data-field="nickname" placeholder="输入昵称" />
+    </view>
+    <view class="modal-field">
+      <view class="modal-label">手机号</view>
+      <input class="modal-input" value="{{editForm.phone}}" bindinput="onEditInput" data-field="phone" placeholder="手机号（可选）" />
+    </view>
+    <view class="modal-actions">
+      <view class="modal-btn-cancel" bindtap="closeEdit">取消</view>
+      <view class="modal-btn-save" bindtap="saveProfile">保存</view>
+    </view>
+  </view>
+</view>

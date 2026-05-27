@@ -1,0 +1,265 @@
+========================================
+  基于微信小程序的个人智能待办清单系统
+  系统框架与技术栈说明文档（云开发版）
+  （供论文初稿撰写参考）
+========================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+一、项目概述
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【项目名称】
+  基于微信小程序的个人智能待办清单系统
+
+【项目背景】
+  现代大学生日常学习生活节奏快、事务繁多，传统纸质记录方式易丢失、查询不便，
+  桌面端待办软件又存在跨设备同步困难、使用场景受限等问题。微信作为国民级社交平台，
+  其小程序生态具有"无需安装、即用即走"的独特优势，非常适合构建轻量级的个人事务管理工具。
+  本系统严格按照毕业设计任务书要求，基于微信小程序 + 微信云开发（云函数、云数据库）
+  技术栈实现，旨在为大学生提供一款便捷、智能、可靠的个人待办清单管理工具。
+
+【项目目标】
+  1. 实现一款轻量化、智能化的个人待办清单小程序
+  2. 支持微信授权登录（wx.getUserProfile + 云函数 cloud.getWXContext）
+  3. 提供待办事项的完整 CRUD 管理能力
+  4. 实现分类管理、优先级标识、截止时间排序、重复任务等核心功能
+  5. 通过微信订阅消息实现到期前 1 小时智能推送提醒
+  6. 提供数据统计与可视化分析（近 7 天趋势、分类分布、连续打卡等）
+  7. 通过云开发降低部署门槛，保障数据安全
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+二、技术栈选型
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【前端层（小程序客户端）】
+  核心框架：微信小程序原生框架
+  视图层：  WXML（WeiXin Markup Language）
+  样式层：  WXSS（WeiXin Style Sheets）
+  逻辑层：  JavaScript ES6+
+  云开发 SDK：wx.cloud API（前端调用云函数）
+  订阅消息：wx.requestSubscribeMessage
+  状态管理：全局 App.globalData + 页面 Page data
+
+【后端层（微信云开发）】
+  云服务：  微信云开发（CloudBase）
+  云函数：  Node.js 运行时（5 个云函数：login / todo / category / stats / reminder）
+  SDK：     wx-server-sdk ~2.6.3
+  数据库：  微信云数据库（基于 MongoDB 的文档型 NoSQL）
+  定时任务：云函数定时触发器（timer trigger）
+  推送：    cloud.openapi.subscribeMessage.send（订阅消息接口）
+  用户标识：cloud.getWXContext().OPENID
+
+【开发工具】
+  IDE：    微信开发者工具（Stable 版）
+  调试：   Chrome DevTools（在开发者工具内嵌）
+  版本控制：Git + Gitee/GitHub
+  协作工具：问卷星（需求调研）、维普（文档管理）
+
+【消息推送】
+  服务：   微信订阅消息（一次订阅授权换一次推送机会）
+  触发：   云函数 timer 触发器，默认每 5 秒扫描到期待办
+
+【选型理由】
+  1. 原生框架相比 uni-app/Taro 性能更优，贴近微信生态
+  2. 云开发免运维、按量计费，完美契合大学生毕设场景
+  3. 云函数配合 cloud.openapi.subscribeMessage 可以合规地实现微信推送
+  4. 云数据库基于 MongoDB 的文档型结构，天然适合嵌套数据（如 todo.tags）
+  5. 整体符合毕业设计任务书要求，无需额外购买服务器或备案
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+三、系统整体架构
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+系统采用云原生三层架构：
+
+  ┌─────────────────────────────────────┐
+  │  展示层（Presentation Layer）       │
+  │  微信小程序客户端 - WXML/WXSS/JS    │
+  │  - 登录页   - 待办列表   - 新增/编辑页 │
+  │  - 分类管理 - 数据统计   - 个人中心  │
+  │  - 已完成归档                       │
+  └─────────────────────────────────────┘
+                   ↓ wx.cloud.callFunction
+  ┌─────────────────────────────────────┐
+  │  业务逻辑层（Business Layer）       │
+  │  微信云函数 - Node.js               │
+  │  - login    云函数：登录 + 用户信息  │
+  │  - todo     云函数：待办 CRUD        │
+  │  - category 云函数：分类管理          │
+  │  - stats    云函数：数据统计          │
+  │  - reminder 云函数：提醒 + 订阅消息推送│
+  └─────────────────────────────────────┘
+                   ↓ wx-server-sdk DB API
+  ┌─────────────────────────────────────┐
+  │  数据持久层（Data Layer）            │
+  │  微信云数据库 - 文档型 NoSQL         │
+  │  - users            用户集合         │
+  │  - categories       分类集合         │
+  │  - todos            待办集合         │
+  │  - reminders        提醒记录集合     │
+  │  - subscribeQuotas  订阅配额集合     │
+  └─────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+四、云函数模块设计
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+采用 action 路由分发模式，每个云函数内部根据 event.action 参数分发至对应的业务方法，
+既便于小程序端调用，也有利于统一鉴权与日志管理。
+
+1. login 云函数
+   职责：用户登录注册、个人信息查询与更新
+   actions:
+     - login         首次登录自动创建用户 + 系统预设分类
+     - getProfile    获取用户详细资料（含累计统计）
+     - updateProfile 更新昵称/头像/推送开关/主题
+
+2. todo 云函数
+   职责：待办事项全流程管理
+   actions:
+     - list      列表（支持 status/categoryId/sortBy/keyword）
+     - detail    详情
+     - create    创建
+     - update    更新（含重置 reminderSent）
+     - toggle    完成状态切换（含重复任务自动创建下一次）
+     - remove    软删除
+     - restore   从软删除恢复
+     - summary   今日概要（total/today/overdue/completed）
+
+3. category 云函数
+   职责：分类管理（系统分类不可删改）
+   actions:
+     - list, create, update, remove
+   特性：
+     - 删除分类时，该分类下的待办自动转移到"其他"分类
+     - 修改分类颜色/名称时，联动更新 todos 集合的冗余字段
+
+4. stats 云函数
+   职责：数据统计聚合
+   产出：
+     - base（total/completed/active/todayCount/overdue）
+     - completionRate
+     - byCategory（聚合管道）
+     - weekTrend（近 7 天）
+     - byPriority
+     - monthCompleted
+     - streakDays（连续打卡天数）
+
+5. reminder 云函数
+   职责：到期扫描 + 订阅消息推送
+   运行模式：
+     - 由定时触发器触发（每 5 秒扫描一次，config.json 配置）
+     - 也可由小程序调用（actions: upcoming / list / saveSubscribe / scanNow）
+   扫描逻辑：
+     - 筛选 reminderEnabled=true、reminderSent=false、dueDate 接近的 todo
+     - 查 subscribeQuotas 集合中的可用配额
+     - 调用 cloud.openapi.subscribeMessage.send 推送消息
+     - 把配额标记为已消费、todo 的 reminderSent 置为 true
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+五、数据库设计
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【表 1：users（用户表）】
+  字段            类型      说明
+  ───────────────────────────────────────
+  _id             String    文档 ID
+  _openid         String    微信 OpenID（自动注入）
+  unionId         String    UnionID
+  nickName        String    昵称
+  avatarUrl       String    头像 URL
+  gender          Number    性别
+  loginCount      Number    登录次数
+  totalTodoCount  Number    累计创建
+  completedCount  Number    累计完成
+  streakDays      Number    连续打卡
+  pushEnabled     Boolean   推送开关
+  theme           String    主题
+  createdAt       Date
+  updatedAt       Date
+
+【表 2：categories（分类表）】
+  _id, _openid
+  name            String    名称
+  color           String    十六进制颜色
+  icon            String    图标
+  isSystem        Boolean   是否系统预设
+  sortOrder       Number    排序权重
+  createdAt       Date
+
+【表 3：todos（待办事项表）】
+  _id, _openid
+  title           String    标题
+  description     String    描述
+  categoryId      String    分类 ID
+  categoryName    String    分类名（冗余）
+  categoryColor   String    分类色（冗余）
+  priority        Number    1-4（低/中/高/紧急）
+  dueDate         Date      截止时间
+  isCompleted     Boolean
+  completedAt     Date
+  isArchived      Boolean
+  isDeleted       Boolean
+  isRepeat        Boolean
+  repeatType      String    daily/weekly/monthly/workday
+  repeatEndDate   Date
+  reminderEnabled Boolean
+  reminderBefore  Number    提前提醒分钟数
+  reminderSent    Boolean   是否已推送
+  tags            Array
+  createdAt, updatedAt
+
+【表 4：reminders（提醒记录表）】
+  _id, _openid, todoId
+  scheduledAt     Date      原计划时间
+  sentAt          Date      实际推送时间
+  status          String    sent / no_subscribe / failed
+  message         String    消息内容
+  createdAt
+
+【表 5：subscribeQuotas（订阅配额表）】
+  _id, _openid, todoId, templateId
+  quota           Number    授权次数（默认 1）
+  consumed        Boolean   是否已使用
+  createdAt, consumedAt
+
+【权限模型】
+  所有集合统一设置为 "仅创建者可读写"，
+  确保用户只能访问自己的数据，
+  外加云函数 Admin 权限可以做定时扫描与推送。
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+六、与原 Node.js/SQLite 版本的差异
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+为了严格符合毕业设计任务书要求，本项目从 Node.js + Express + SQLite 版本
+重构为微信云开发版本。主要差异如下：
+
+  ├ 认证：
+  │   原版：JWT Token（自签名），路由中间件校验
+  │   新版：cloud.getWXContext().OPENID 自动注入，更安全
+  │
+  ├ 后端运行时：
+  │   原版：Express + node-cron 常驻进程
+  │   新版：云函数按需调用 + 定时触发器
+  │
+  ├ 数据库：
+  │   原版：SQLite（关系型，SQL 语句）
+  │   新版：云数据库（文档型，MongoDB-like API）
+  │
+  ├ 提醒推送：
+  │   原版：仅记录 reminders 表（无真实推送）
+  │   新版：cloud.openapi.subscribeMessage.send 真实推送到微信"服务通知"
+  │
+  └ 部署：
+      原版：需本地/服务器运行 Node
+      新版：上传云函数至腾讯云，无需维护服务器
+
+
+========================================

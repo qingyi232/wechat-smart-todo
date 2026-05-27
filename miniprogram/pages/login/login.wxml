@@ -1,0 +1,44 @@
+<view class="login-page">
+  <image class="bg-pattern" src="https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=750&h=800&fit=crop&q=80" mode="aspectFill" />
+  <view class="bg-mask"></view>
+
+  <view class="logo-area">
+    <view class="logo-circle">
+      <text class="logo-emoji">✓</text>
+    </view>
+    <view class="logo-title">待办清单</view>
+    <view class="logo-subtitle">让每一天都井然有序</view>
+  </view>
+
+  <view class="form-card">
+    <view class="form-title">欢迎使用</view>
+    <view class="form-desc">使用微信一键登录，数据云端同步</view>
+
+    <view class="avatar-picker" wx:if="{{!loading}}">
+      <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image class="avatar-preview" src="{{avatarUrl || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI9FhqR54LnS4lkb2pMa0W39tIiby4IdpVicicpYLibKyRtN1iaJIF1Oana30ChGGCKPOhGibZickuA/0'}}" mode="aspectFill" />
+        <text class="avatar-tip">点击选择头像</text>
+      </button>
+      <input class="nickname-input" type="nickname" value="{{nickName}}" placeholder="请输入昵称" bindinput="onNicknameInput" />
+    </view>
+
+    <button class="btn-login" bindtap="onAuthorizeLogin" loading="{{loading}}">
+      {{loading ? '登录中...' : '微信授权登录'}}
+    </button>
+
+    <view class="quick-login">
+      <view class="quick-title">或快捷体验</view>
+      <button class="btn-quick" bindtap="onQuickLogin" loading="{{loading}}">
+        直接进入（使用微信默认身份）
+      </button>
+    </view>
+
+    <view class="login-tips">
+      <text>登录即表示您同意系统使用微信 openid 标识并存储待办数据到云端</text>
+    </view>
+  </view>
+
+  <view class="footer">
+    <text>基于微信云开发 · 小程序原生框架</text>
+  </view>
+</view>

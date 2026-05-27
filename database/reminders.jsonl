@@ -1,0 +1,1 @@
+{"todoId":"sample_todo_001","scheduledAt":{"$date":"2026-04-21T09:00:00.000Z"},"sentAt":{"$date":"2026-04-21T08:00:00.000Z"},"status":"sent","message":"已推送微信提醒：提交周报","createdAt":{"$date":"2026-04-21T08:00:00.000Z"}}

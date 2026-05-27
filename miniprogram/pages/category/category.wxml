@@ -1,0 +1,53 @@
+<view class="page">
+  <view class="header-tip">管理您的待办分类，点击可编辑名称/颜色</view>
+
+  <view class="cat-list">
+    <view class="cat-card" wx:for="{{categories}}" wx:key="id">
+      <view class="cat-info">
+        <view class="cat-dot" style="background:{{item.color}}"></view>
+        <view>
+          <view class="cat-name">{{item.name}}</view>
+          <view class="cat-count">{{item.todo_count || 0}} 个待办</view>
+        </view>
+      </view>
+      <view class="cat-actions">
+        <text class="act-btn" bindtap="editCat" data-id="{{item.id}}" data-name="{{item.name}}" data-color="{{item.color}}">编辑</text>
+        <text class="act-btn del" bindtap="deleteCat" data-id="{{item.id}}" data-name="{{item.name}}">删除</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="add-btn" bindtap="onAdd">
+    <text class="add-icon">+</text>
+    <text>新建分类</text>
+  </view>
+</view>
+
+<!-- 编辑弹窗 -->
+<view class="modal-mask" wx:if="{{showModal}}" bindtap="closeModal">
+  <view class="modal" catchtap="noop">
+    <view class="modal-title">{{isEdit ? '编辑分类' : '新建分类'}}</view>
+
+    <view class="modal-field">
+      <view class="modal-label">名称</view>
+      <input class="modal-input" value="{{form.name}}" bindinput="setField" data-field="name" placeholder="输入分类名" maxlength="10" />
+    </view>
+
+    <view class="modal-field">
+      <view class="modal-label">颜色</view>
+      <view class="color-list">
+        <view class="color-dot {{form.color === c ? 'active' : ''}}"
+          wx:for="{{colorOptions}}" wx:key="*this" wx:for-item="c"
+          style="background:{{c}}"
+          bindtap="selectColor" data-color="{{c}}">
+          <text wx:if="{{form.color === c}}" class="check">✓</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="modal-actions">
+      <view class="modal-btn-cancel" bindtap="closeModal">取消</view>
+      <view class="modal-btn-save" bindtap="saveCat">保存</view>
+    </view>
+  </view>
+</view>
